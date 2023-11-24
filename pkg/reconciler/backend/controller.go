@@ -2,16 +2,19 @@ package backend
 
 import (
 	"context"
-	"knative.dev/pkg/configmap"
+	"fmt"
+	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/json"
+	eventtypeinformer "knative.dev/eventing/pkg/client/injection/informers/eventing/v1beta2/eventtype"
+	eventtypereconciler "knative.dev/eventing/pkg/client/injection/reconciler/eventing/v1beta2/eventtype"
+	eventinglistersv1beta2 "knative.dev/eventing/pkg/client/listers/eventing/v1beta2"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/logging"
-
-	"k8s.io/client-go/tools/cache"
-
-	eventtypeinformer "knative.dev/eventing/pkg/client/injection/informers/eventing/v1beta1/eventtype"
+	"log"
+	"net/http"
 )
 
-func NewController(ctx context.Context, watcher configmap.Watcher) *controller.Impl {
+func NewController(ctx context.Context) *controller.Impl {
 
 	reconciler := &Reconciler{
 		EventTypeLister: eventtypeinformer.Get(ctx).Lister(),
@@ -19,22 +22,43 @@ func NewController(ctx context.Context, watcher configmap.Watcher) *controller.I
 
 	logger := logging.FromContext(ctx)
 
-	// TODO:
 	logger.Infow("Starting backstage-backend controller")
 
-	impl := brokerreconciler.NewImpl(ctx, reconciler, kafka.BrokerClass, func(impl *controller.Impl) controller.Options {
-		return controller.Options{PromoteFilterFunc: kafka.BrokerClassFilter()}
-	})
+	impl := eventtypereconciler.NewImpl(ctx, reconciler)
 
-	eventTypeInformer := eventtypeinformer.Get(ctx)
-
-	eventTypeInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
-		FilterFunc: func(obj interface{}) bool {
-			//TODO
-			return true
-		},
-		Handler: controller.HandleAll(impl.Enqueue),
-	})
+	go startWebServer(eventtypeinformer.Get(ctx).Lister())
 
 	return impl
+}
+
+func startWebServer(lister eventinglistersv1beta2.EventTypeLister) {
+
+	// TODO: why multiple instances are created?
+	handleRoot := func(w http.ResponseWriter, r *http.Request) {
+		// TODO: better logging
+		fmt.Println("Handling request")
+
+		ret, err := lister.List(labels.Everything())
+		if err != nil {
+			// TODO: better logs
+			log.Fatal(err)
+		}
+
+		// TODO
+		fmt.Println(ret)
+
+		// write to response as json
+		// TODO: hardcoded crap
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+
+		err = json.NewEncoder(w).Encode(ret)
+		if err != nil {
+			// TODO: better error handling
+			log.Fatal(err)
+		}
+
+	}
+	http.HandleFunc("/", handleRoot)
+	log.Fatal(http.ListenAndServe(":8000", nil))
 }

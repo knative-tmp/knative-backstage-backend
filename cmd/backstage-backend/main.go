@@ -2,9 +2,8 @@ package main
 
 import (
 	"context"
-
-	"github.com/knative-tmp/knative-backstage-backend/pkg/reconciler/backend"
-
+	"fmt"
+	"knative.dev/backstage-backend/pkg/reconciler/backend"
 	"knative.dev/pkg/injection"
 	"knative.dev/pkg/signals"
 
@@ -19,13 +18,15 @@ const (
 
 func main() {
 
+	// TODO
+	fmt.Println("Hello, World 1!")
+
 	sharedmain.MainNamed(signals.NewContext(), component,
 
-		// Broker controller
 		injection.NamedControllerConstructor{
 			Name: "backend",
 			ControllerConstructor: func(ctx context.Context, watcher configmap.Watcher) *controller.Impl {
-				return backend.NewController(ctx, watcher)
+				return backend.NewController(ctx)
 			},
 		},
 	)
