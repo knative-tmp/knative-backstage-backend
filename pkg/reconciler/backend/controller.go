@@ -26,16 +26,29 @@ func NewController(ctx context.Context) *controller.Impl {
 
 	impl := eventtypereconciler.NewImpl(ctx, reconciler)
 
-	go startWebServer(eventtypeinformer.Get(ctx).Lister())
+	go startWebServer(ctx, eventtypeinformer.Get(ctx).Lister())
 
 	return impl
 }
 
-func startWebServer(lister eventinglistersv1beta2.EventTypeLister) {
+func startWebServer(ctx context.Context, lister eventinglistersv1beta2.EventTypeLister) {
+
+	logger := logging.FromContext(ctx)
+
+	logger.Infow("Starting backstage-backend webserver")
 
 	r := mux.NewRouter()
-	r.HandleFunc("/eventtypes", EventTypeListHandler(lister))
+	r.Use(commonMiddleware)
+
+	r.HandleFunc("/eventtypes", EventTypeListHandler(ctx, lister)).Methods("GET")
 	http.Handle("/", r)
 
 	log.Fatal(http.ListenAndServe(":8000", r))
+}
+
+func commonMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/json")
+		next.ServeHTTP(w, r)
+	})
 }
