@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"knative.dev/backstage-backend/pkg/reconciler/backend"
 	"knative.dev/pkg/injection"
 	"knative.dev/pkg/signals"
@@ -17,9 +16,6 @@ const (
 )
 
 func main() {
-
-	// TODO
-	fmt.Println("Hello, World 1!")
 
 	sharedmain.MainNamed(signals.NewContext(), component,
 
