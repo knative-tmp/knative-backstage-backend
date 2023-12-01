@@ -2,8 +2,13 @@ package backend
 
 import (
 	"context"
-	eventtypeinformer "knative.dev/eventing/pkg/client/injection/informers/eventing/v1beta2/eventtype"
 	eventtypereconciler "knative.dev/eventing/pkg/client/injection/reconciler/eventing/v1beta2/eventtype"
+
+	brokerinformer "knative.dev/eventing/pkg/client/injection/informers/eventing/v1/broker"
+	triggerinformer "knative.dev/eventing/pkg/client/injection/informers/eventing/v1/trigger"
+	eventtypeinformer "knative.dev/eventing/pkg/client/injection/informers/eventing/v1beta2/eventtype"
+
+	eventinglistersv1 "knative.dev/eventing/pkg/client/listers/eventing/v1"
 	eventinglistersv1beta2 "knative.dev/eventing/pkg/client/listers/eventing/v1beta2"
 
 	"knative.dev/pkg/controller"
@@ -14,11 +19,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type Listers struct {
+	EventTypeLister eventinglistersv1beta2.EventTypeLister
+	BrokerLister    eventinglistersv1.BrokerLister
+	TriggerLister   eventinglistersv1.TriggerLister
+}
+
 func NewController(ctx context.Context) *controller.Impl {
 
-	reconciler := &Reconciler{
-		EventTypeLister: eventtypeinformer.Get(ctx).Lister(),
-	}
+	reconciler := &Reconciler{}
 
 	logger := logging.FromContext(ctx)
 
@@ -26,12 +35,17 @@ func NewController(ctx context.Context) *controller.Impl {
 
 	impl := eventtypereconciler.NewImpl(ctx, reconciler)
 
-	go startWebServer(ctx, eventtypeinformer.Get(ctx).Lister())
+	listers := Listers{
+		EventTypeLister: eventtypeinformer.Get(ctx).Lister(),
+		BrokerLister:    brokerinformer.Get(ctx).Lister(),
+		TriggerLister:   triggerinformer.Get(ctx).Lister(),
+	}
+	go startWebServer(ctx, listers)
 
 	return impl
 }
 
-func startWebServer(ctx context.Context, lister eventinglistersv1beta2.EventTypeLister) {
+func startWebServer(ctx context.Context, listers Listers) {
 
 	logger := logging.FromContext(ctx)
 
@@ -40,7 +54,7 @@ func startWebServer(ctx context.Context, lister eventinglistersv1beta2.EventType
 	r := mux.NewRouter()
 	r.Use(commonMiddleware)
 
-	r.HandleFunc("/eventtypes", EventTypeListHandler(ctx, lister)).Methods("GET")
+	r.HandleFunc("/", EventMeshHandler(ctx, listers)).Methods("GET")
 	http.Handle("/", r)
 
 	log.Fatal(http.ListenAndServe(":8000", r))
