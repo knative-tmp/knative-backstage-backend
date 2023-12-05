@@ -17,6 +17,8 @@ type EventMesh struct {
 	Triggers   []Trigger   `json:"triggers"`
 }
 
+type EventTypeMap = map[string]*EventType
+
 func EventMeshHandler(ctx context.Context, listers Listers) func(w http.ResponseWriter, req *http.Request) {
 	logger := logging.FromContext(ctx)
 
@@ -51,21 +53,47 @@ func EventMeshHandler(ctx context.Context, listers Listers) func(w http.Response
 			}
 		}
 
-		fetchedTriggers, err := listers.TriggerLister.List(labels.Everything())
-		if err != nil {
-			logger.Errorw("Error listing triggers", "error", err)
-			return
-		}
+		//brokerEventTypeMap := make(map[string]EventTypeMap)
+		//
+		//for _, et := range convertedEventTypes {
+		//	if _, ok := brokerEventTypeMap[et.]; !ok {
+		//		brokerEventTypeMap[et.BrokerRef] = make(EventTypeMap)
+		//	}
+		//	brokerEventTypeMap[et.BrokerRef][et.GetNameAndNamespace()] = &et
+		//}
 
-		convertedTriggers := make([]Trigger, 0, len(fetchedTriggers))
-		for _, tr := range fetchedTriggers {
-			convertedTriggers = append(convertedTriggers, convertTrigger(tr))
-		}
+		// TODO: implement triggers
+		//fetchedTriggers, err := listers.TriggerLister.List(labels.Everything())
+		//if err != nil {
+		//	logger.Errorw("Error listing triggers", "error", err)
+		//	return
+		//}
+		//
+		//convertedTriggers := make([]Trigger, 0, len(fetchedTriggers))
+		//for _, tr := range fetchedTriggers {
+		//	convertedTriggers = append(convertedTriggers, convertTrigger(tr))
+		//
+		//	if tr.Spec.Filters != nil && len(tr.Spec.Filters) > 0 {
+		//		// TODO: this is pretty hard!
+		//	} else{
+		//		// spec.Filter is only used when spec.Filters is nil or empty
+		//		if tr.Spec.Filter != nil {
+		//			for key, val := range tr.Spec.Filter.Attributes {
+		//				if key == "type" {
+		//					if et, ok := brokerEventTypeMap[tr.Spec.Broker][val]; ok {
+		//						et.Consumers = append(et.Consumers, ObjNameAndNamespace(tr))
+		//					}
+		//				}
+		//			}
+		//		}
+		//	}
+		//}
 
 		eventMesh := EventMesh{
 			EventTypes: convertedEventTypes,
 			Brokers:    convertedBrokers,
-			Triggers:   convertedTriggers,
+			// TODO
+			// Triggers:   convertedTriggers,
 		}
 
 		err = json.NewEncoder(w).Encode(eventMesh)
