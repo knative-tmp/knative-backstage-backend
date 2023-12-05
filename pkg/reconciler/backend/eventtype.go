@@ -17,8 +17,6 @@ type EventType struct {
 }
 
 func convertEventType(et *v1beta2.EventType) EventType {
-	// TODO: need deduplication at this level here
-
 	// TODO: more information!
 	return EventType{
 		Name:        et.Name,
